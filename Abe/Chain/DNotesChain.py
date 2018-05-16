@@ -19,12 +19,12 @@ from .. import deserialize
 
 class DNotesChain(BaseChain):
     """
-    The DNtoes blockchain.
+    The DNotes blockchain.
     """
     def ds_parse_transaction(chain, ds):
-        return DNotesChain.parse_Transaction(ds)
+        return chain.parse_Transaction(ds)
 
-    def parse_Transaction(vds):
+    def parse_Transaction(chain, vds):
         d = {}
         start_pos = vds.read_cursor
         d['version'] = vds.read_int32()
@@ -36,12 +36,12 @@ class DNotesChain(BaseChain):
         n_vout = vds.read_compact_size()
         d['txOut'] = []
         for i in xrange(n_vout):
-            d['txOut'].append(DNotesChain.parse_TxOut(vds))
+            d['txOut'].append(chain.parse_TxOut(vds))
         d['lockTime'] = vds.read_uint32()
         d['__data__'] = vds.input[start_pos:vds.read_cursor]
         return d
 
-    def parse_TxOut(vds):
+    def parse_TxOut(chain,vds):
         d = {}
         d['value'] = vds.read_int64()
         d['invoice'] = vds.read_string()
@@ -50,7 +50,7 @@ class DNotesChain(BaseChain):
 
     def ds_block_header_hash(chain, ds):
         start = ds.read_cursor
-        header_len = len(chain.ds_parse_block_header(chain, ds))
+        header_len = len(chain.ds_parse_block_header(ds)['__header__'])
         ds.read_cursor = start
         return chain.block_header_hash(
             ds.input[ds.read_cursor : ds.read_cursor + header_len])

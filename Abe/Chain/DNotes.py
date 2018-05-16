@@ -24,3 +24,6 @@ class DNotes(DNotesChain):
         chain.script_addr_vers = '\x7d'
         chain.magic = '\xf5\xc1\xaf\xca'
         DNotesChain.__init__(chain, **kwargs)
+
+    datadir_conf_file_name = 'dnotes.conf'
+    datadir_rpcport = 11226

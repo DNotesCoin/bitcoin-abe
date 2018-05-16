@@ -2757,16 +2757,16 @@ store._ddl['txout_approx'],
                     rpc_hash = get_blockhash(height + 1)
                 else:
                     # get full RPC block with "getblock <hash> False"
-                    ds.write(rpc("getblock", rpc_hash, False).decode('hex'))
+                    ds.write(rpc("getrawblock", rpc_hash, False).decode('hex'))
                     block_hash = chain.ds_block_header_hash(ds)
                     block = chain.ds_parse_block(ds)
                     assert hash == block_hash
                     block['hash'] = block_hash
 
                     # XXX Shouldn't be needed since we deserialize a valid block already
-                    if chain.block_header_hash(chain.serialize_block_header(
-                            block)) != hash:
-                        raise InvalidBlock('block hash mismatch')
+                    #if chain.block_header_hash(chain.serialize_block_header(
+                    #        block)) != hash:
+                    #    raise InvalidBlock('block hash mismatch')
 
                     store.import_block(block, chain = chain)
                     store.imported_bytes(ds.read_cursor)
