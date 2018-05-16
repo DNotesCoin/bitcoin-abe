@@ -48,13 +48,20 @@ class DNotesChain(BaseChain):
         d['scriptPubKey'] = vds.read_bytes(vds.read_compact_size())
         return d
 
+    def ds_block_header_hash(chain, ds):
+        start = ds.read_cursor
+        header_len = len(chain.ds_parse_block_header(chain, ds))
+        ds.read_cursor = start
+        return chain.block_header_hash(
+            ds.input[ds.read_cursor : ds.read_cursor + header_len])
+
     def block_header_hash(chain, header):
         b = chain.parse_block_header(header)
         if (b['version'] > 6):
             from .. import util
-            return util.double_sha256(header)
+            return util.double_sha256(header[:80])
         import x13_hash
-        return x13_hash.getPoWHash(header)
+        return x13_hash.getPoWHash(header[:80])
 
     def ds_parse_block_header(chain, ds):
         d = {}
@@ -72,3 +79,4 @@ class DNotesChain(BaseChain):
             ds.read_int64() #balance
         header_end = ds.read_cursor
         d['__header__'] = ds.input[header_start:header_end]
+        return d
