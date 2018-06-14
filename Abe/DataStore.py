@@ -782,6 +782,7 @@ store._ddl['configvar'],
     txout_pos     NUMERIC(10) NOT NULL,
     txout_value   NUMERIC(30) NOT NULL,
     txout_scriptPubKey VARBINARY(""" + str(MAX_SCRIPT) + """),
+    txout_invoice VARCHAR(255),
     pubkey_id     NUMERIC(26),
     UNIQUE (tx_id, txout_pos),
     FOREIGN KEY (pubkey_id)
@@ -1844,10 +1845,10 @@ store._ddl['txout_approx'],
             store.sql("""
                 INSERT INTO txout (
                     txout_id, tx_id, txout_pos, txout_value,
-                    txout_scriptPubKey, pubkey_id
-                ) VALUES (?, ?, ?, ?, ?, ?)""",
+                    txout_scriptPubKey, txout_invoice, pubkey_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
                       (txout_id, tx_id, pos, store.intin(txout['value']),
-                       store.binin(txout['scriptPubKey']), pubkey_id))
+                       store.binin(txout['scriptPubKey']), txout['invoice'], pubkey_id))
             for row in store.selectall("""
                 SELECT txin_id
                   FROM unlinked_txin
@@ -3056,6 +3057,41 @@ store._ddl['txout_approx'],
               JOIN chain c ON (b.block_id = c.chain_last_block_id)
              WHERE c.chain_id = ?""", (chain_id,))
         return util.calculate_target(int(rows[0][0])) if rows else None
+
+    def get_received_and_confirm_height(store, chain_id, pubkey_hash,
+                                       block_height = None, invoice = None):
+        sql = """
+            SELECT COALESCE(value_sum, 0), COALESCE(max_height, 0)
+              FROM chain c LEFT JOIN (
+              SELECT cc.chain_id, SUM(txout.txout_value) value_sum, MAX(cc.block_height) max_height
+              FROM pubkey
+              JOIN txout              ON (txout.pubkey_id = pubkey.pubkey_id)
+              JOIN block_tx           ON (block_tx.tx_id = txout.tx_id)
+              JOIN block b            ON (b.block_id = block_tx.block_id)
+              JOIN chain_candidate cc ON (cc.block_id = b.block_id)
+              WHERE
+                  pubkey.pubkey_hash = ? AND
+                  cc.chain_id = ? AND
+                  cc.in_longest = 1""" + (
+                  "" if block_height is None else """ AND
+                  cc.block_height <= ?""") + (
+                  "" if invoice is None else """ AND
+                  txout.txout_invoice = ?""") + """
+              GROUP BY cc.chain_id
+              ) a ON (c.chain_id = a.chain_id)
+              WHERE c.chain_id = ?"""
+        dbhash = store.binin(pubkey_hash)
+
+        if (block_height is None and invoice is None):
+            params = (dbhash, chain_id, chain_id)
+        elif (block_height is not None and invoice is None):
+            params = (dbhash, chain_id, block_height, chain_id)
+        elif (block_height is None and invoice is not None)
+            params = (dbhash, chain_id, invoice, chain_id)
+        else:
+            params = (dbhash, chain_id, block_height, invoice, chain_id)
+
+        return store.selectrow(sql,params)
 
     def get_received_and_last_block_id(store, chain_id, pubkey_hash,
                                        block_height = None):

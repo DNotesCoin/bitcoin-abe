@@ -1647,6 +1647,38 @@ class Abe:
         return ("ERROR: please try again" if total is None else
                 format_satoshis(total, chain))
 
+    def q_invoiceamount(abe, page, chain):
+        """amount paid for a particular invoice and recipient address."""
+        amount,_ = abe.q_invoice(page, chain)
+        return amount
+    
+    def q_invoiceconfirmation(abe, page, chain):
+        """number of confirmations for a particular invoice and recipient address."""
+        _,confirmations = abe.q_invoice(page, chain)
+        return confirmations
+
+    def q_invoice(abe, page, chain):
+        """amount paid and number of confirmations for a particular invoice and recipient address."""
+        addrplusinvoice = wsgiref.util.shift_path_info(page['env'])
+        if chain is None or addr is None:
+            return 'returns amount of money sent to a given address for a given invoice number\n' \
+                '/chain/CHAIN/q/invoice/ADDRESS+INVOICE\n'
+
+        try:
+            addr, invoice = addrplusinvoice.split('+')
+        except:
+            return 'ERROR: address+invoice invalid'
+
+        if not util.possible_address(addr):
+            return 'ERROR: address invalid'
+
+        version, hash = util.decode_address(addr)
+        total, height = abe.store.get_received_and_confirm_height(chain.id, hash, invoice=invoice)
+        confirmations = abe.get_max_block_height(chain) - height
+
+        return ("ERROR: please try again" if total is None or confirmations is None else
+            format_satoshis(total, chain))+",{}".format(confirmations)
+
     def q_fb(abe, page, chain):
         """returns an address's firstbits."""
 
