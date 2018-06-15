@@ -1649,18 +1649,19 @@ class Abe:
 
     def q_invoiceamount(abe, page, chain):
         """amount paid for a particular invoice and recipient address."""
-        amount,_ = abe.q_invoice(page, chain)
+        amount,_ = abe.q_invoice(page, chain).split(',')
         return amount
     
     def q_invoiceconfirmation(abe, page, chain):
         """number of confirmations for a particular invoice and recipient address."""
-        _,confirmations = abe.q_invoice(page, chain)
+        _,confirmations = abe.q_invoice(page, chain).split(',')
         return confirmations
 
     def q_invoice(abe, page, chain):
         """amount paid and number of confirmations for a particular invoice and recipient address."""
         addrplusinvoice = wsgiref.util.shift_path_info(page['env'])
-        if chain is None or addr is None:
+
+        if chain is None or addrplusinvoice is None:
             return 'returns amount of money sent to a given address for a given invoice number\n' \
                 '/chain/CHAIN/q/invoice/ADDRESS+INVOICE\n'
 

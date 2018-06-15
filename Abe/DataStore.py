@@ -3086,7 +3086,7 @@ store._ddl['txout_approx'],
             params = (dbhash, chain_id, chain_id)
         elif (block_height is not None and invoice is None):
             params = (dbhash, chain_id, block_height, chain_id)
-        elif (block_height is None and invoice is not None)
+        elif (block_height is None and invoice is not None):
             params = (dbhash, chain_id, invoice, chain_id)
         else:
             params = (dbhash, chain_id, block_height, invoice, chain_id)
