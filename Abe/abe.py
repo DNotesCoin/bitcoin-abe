@@ -190,7 +190,7 @@ class Abe:
                 abe.template_vars.get('download', ''))
         abe.base_url = args.base_url
         abe.address_history_rows_max = int(
-            args.address_history_rows_max or 1000)
+            args.address_history_rows_max or 100000)
 
         if args.shortlink_type is None:
             abe.shortlink_type = ("firstbits" if store.use_firstbits else
@@ -1729,6 +1729,43 @@ class Abe:
 
         return "\n".join(abe.store.firstbits_to_addresses(
                 fb, chain_id = (chain and chain.id)))
+
+    def q_address_history (abe, page, chain):
+        """returns the history of the address balance and transactions."""
+        address = wsgiref.util.shift_path_info(page['env'])
+        if address in (None, '') or page['env']['PATH_INFO'] != '':
+            raise PageNotFound()
+
+        try:
+            history = abe.store.transaction_history(address)
+        except DataStore.MalformedAddress:
+            return 'Not a valid address.'
+
+        balance = 0
+
+        ret = ''
+        for elt in history:
+            time = elt[0]
+            chain_id = elt[1]
+            block_height = elt[2]
+            block_hash = elt[3]
+            tx_hash = elt[4]
+            value = elt[5]
+            second_address = elt[6]
+            second_address_value = elt[7]
+            tx_type = elt[8]
+
+            if chain_id != chain.id:
+                continue
+            
+            second_address = util.hash_to_address(version, second_address)
+            balance += value
+
+            ret += '{},{},{},{},{},{},{},{},{}\n'.format(tx_hash,block_height,block_hash,
+                    time,tx_type,format_satoshis(value, chain),
+                    second_address,format_satoshis(second_address_value, chain),escape(chain.code3))
+
+        return ret
 
     def handle_download(abe, page):
         name = abe.args.download_name

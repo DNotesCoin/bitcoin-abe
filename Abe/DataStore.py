@@ -2315,6 +2315,64 @@ store._ddl['txout_approx'],
 
         return hist
 
+    def transaction_history(store, address):
+        version, binaddr = util.decode_check_address(address)
+        if binaddr is None:
+            raise MalformedAddress("Invalid address")
+        dbhash = store.binin(binaddr)
+
+        return store.selectall("""
+            SELECT 
+            b.block_nTime,
+            cc.chain_id,
+            b.block_height,
+            b.block_hash,
+            tx.tx_hash,
+            value, 
+            CASE WHEN txin.tx_id IS NOT NULL THEN prevout.pubkey_hash ELSE txout.pubkey_hash END address,
+            CASE WHEN txin.tx_id IS NOT NULL THEN prevout.txout_value ELSE txout.txout_value END addressValue,
+            CASE WHEN txin.tx_id IS NOT NULL THEN 'D' ELSE 'W' END tx_type
+            FROM
+                (SELECT 
+                COALESCE(txinputs.tx_hash,txoutputs.tx_hash) tx_hash,
+                COALESCE(txoutputs.outvalue,0) - COALESCE(txinputs.invalue,0) value,
+                COALESCE(txinputs.invalue,0) invalue,
+                COALESCE(txoutputs.outvalue,0) outvalue
+                FROM
+                    (SELECT
+                    tx.tx_hash,
+                    SUM(prevout.txout_value) invalue,
+                    FROM chain_candidate cc
+                    JOIN block b ON (b.block_id = cc.block_id)
+                    JOIN block_tx ON (block_tx.block_id = b.block_id)
+                    JOIN tx ON (tx.tx_id = block_tx.tx_id)
+                    JOIN txin ON (txin.tx_id = tx.tx_id)
+                    JOIN txout prevout ON (txin.txout_id = prevout.txout_id)
+                    JOIN pubkey inkey ON (inkey.pubkey_id = prevout.pubkey_id)
+                    WHERE inkey.pubkey_hash = ?
+                    AND cc.in_longest = 1
+                    GROUP BY tx.tx_hash) txinputs
+                    FULL OUTER JOIN
+                    (SELECT
+                    tx.tx_hash,
+                    SUM(txout.txout_value) outvalue,
+                    FROM chain_candidate cc
+                    JOIN block b ON (b.block_id = cc.block_id)
+                    JOIN block_tx ON (block_tx.block_id = b.block_id)
+                    JOIN tx ON (tx.tx_id = block_tx.tx_id)
+                    JOIN txout ON (txout.tx_id = tx.tx_id)
+                    JOIN pubkey ON (txout.pubkey_id = pubkey.pubkey_id)
+                    WHERE pubkey.pubkey_hash = ?
+                    AND cc.in_longest = 1
+                    GROUP BY tx.tx_hash) txoutputs
+                ON (txinputs.tx_hash = txoutputs.tx_hash)
+                ) txflow
+                JOIN tx ON (tx.tx_hash = txflow.tx_hash)
+                LEFT JOIN txin ON (txin.tx_id = tx.tx_id AND ((txflow.outvalue>0 AND txflow.invalue=0) OR (txflow.outvalue>0 AND txflow.invalue>0 AND value > 0)))
+                LEFT JOIN txout prevout ON (txin.txout_id = prevout.txout_id)
+	            LEFT JOIN txout ON (txout.tx_id = tx.tx_id AND ((txflow.outvalue=0 AND txflow.invalue>0) OR (txflow.outvalue>0 AND txflow.invalue>0 AND value <= 0)))
+                """,(dbhash, dbhash))     
+
     # Called to indicate that the given block has the correct magic
     # number and policy for the given chains.  Updates CHAIN_CANDIDATE
     # and CHAIN.CHAIN_LAST_BLOCK_ID as appropriate.
