@@ -1733,8 +1733,10 @@ class Abe:
     def q_address_history (abe, page, chain):
         """returns the history of the address balance and transactions."""
         address = wsgiref.util.shift_path_info(page['env'])
-        if address in (None, '') or page['env']['PATH_INFO'] != '':
-            raise PageNotFound()
+        version,_ = util.decode_address(address)
+        if address is None or chain is None:
+            return 'returns the history of the address balance and transactions.\n' \
+                '/chain/CHAIN/q/addressbalance/ADDRESS\n'
 
         try:
             history = abe.store.transaction_history(address)
@@ -1742,6 +1744,7 @@ class Abe:
             return 'Not a valid address.'
 
         balance = 0
+        last_tx_hash = ''
 
         ret = ''
         for elt in history:
@@ -1757,13 +1760,17 @@ class Abe:
 
             if chain_id != chain.id:
                 continue
-            
+           
+            if last_tx_hash != tx_hash:
+                balance += value
+ 
             second_address = util.hash_to_address(version, second_address)
-            balance += value
 
-            ret += '{},{},{},{},{},{},{},{},{}\n'.format(tx_hash,block_height,block_hash,
-                    time,tx_type,format_satoshis(value, chain),
+            ret += '{},{},{},{},{},{},{},{},{},{}\n'.format(tx_hash,block_height,block_hash,
+                    time,tx_type,format_satoshis(value, chain),format_satoshis(balance,chain),
                     second_address,format_satoshis(second_address_value, chain),escape(chain.code3))
+
+            last_tx_hash = tx_hash
 
         return ret
 

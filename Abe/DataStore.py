@@ -2328,21 +2328,23 @@ store._ddl['txout_approx'],
             b.block_height,
             b.block_hash,
             tx.tx_hash,
-            value, 
-            CASE WHEN txin.tx_id IS NOT NULL THEN prevout.pubkey_hash ELSE txout.pubkey_hash END address,
-            CASE WHEN txin.tx_id IS NOT NULL THEN prevout.txout_value ELSE txout.txout_value END addressValue,
-            CASE WHEN txin.tx_id IS NOT NULL THEN 'D' ELSE 'W' END tx_type
+            txflow.value, 
+            CASE WHEN txin.tx_id IS NOT NULL THEN inkey.pubkey_hash ELSE outkey.pubkey_hash END AS address,
+            CASE WHEN txin.tx_id IS NOT NULL THEN prevout.txout_value ELSE txout.txout_value END AS addressValue,
+            CASE WHEN txin.tx_id IS NOT NULL THEN 'D' ELSE 'W' END AS tx_type
             FROM
                 (SELECT 
-                COALESCE(txinputs.tx_hash,txoutputs.tx_hash) tx_hash,
-                COALESCE(txoutputs.outvalue,0) - COALESCE(txinputs.invalue,0) value,
-                COALESCE(txinputs.invalue,0) invalue,
-                COALESCE(txoutputs.outvalue,0) outvalue
+                COALESCE(txinputs.tx_hash,txoutputs.tx_hash) AS tx_hash,
+                (COALESCE(txoutputs.outvalue,0) - COALESCE(txinputs.invalue,0)) AS value,
+                COALESCE(txinputs.invalue,0) AS invalue,
+                COALESCE(txoutputs.outvalue,0) AS outvalue,
+                COALESCE(txinputs.block_id,txoutputs.block_id) AS block_id
                 FROM
                     (SELECT
                     tx.tx_hash,
-                    SUM(prevout.txout_value) invalue,
-                    FROM chain_candidate cc
+                    cc.block_id,
+                    SUM(prevout.txout_value) AS invalue
+                    FROM chain_candidate AS cc
                     JOIN block b ON (b.block_id = cc.block_id)
                     JOIN block_tx ON (block_tx.block_id = b.block_id)
                     JOIN tx ON (tx.tx_id = block_tx.tx_id)
@@ -2351,11 +2353,12 @@ store._ddl['txout_approx'],
                     JOIN pubkey inkey ON (inkey.pubkey_id = prevout.pubkey_id)
                     WHERE inkey.pubkey_hash = ?
                     AND cc.in_longest = 1
-                    GROUP BY tx.tx_hash) txinputs
+                    GROUP BY tx.tx_hash, cc.block_id) txinputs
                     FULL OUTER JOIN
                     (SELECT
                     tx.tx_hash,
-                    SUM(txout.txout_value) outvalue,
+                    cc.block_id,
+                    SUM(txout.txout_value) AS outvalue
                     FROM chain_candidate cc
                     JOIN block b ON (b.block_id = cc.block_id)
                     JOIN block_tx ON (block_tx.block_id = b.block_id)
@@ -2364,13 +2367,18 @@ store._ddl['txout_approx'],
                     JOIN pubkey ON (txout.pubkey_id = pubkey.pubkey_id)
                     WHERE pubkey.pubkey_hash = ?
                     AND cc.in_longest = 1
-                    GROUP BY tx.tx_hash) txoutputs
+                    GROUP BY tx.tx_hash, cc.block_id) txoutputs
                 ON (txinputs.tx_hash = txoutputs.tx_hash)
                 ) txflow
-                JOIN tx ON (tx.tx_hash = txflow.tx_hash)
+                JOIN chain_candidate cc ON (cc.block_id = txflow.block_id)
+                JOIN block b ON (b.block_id = cc.block_id)
+                JOIN block_tx ON (block_tx.block_id = b.block_id)
+                JOIN tx ON (tx.tx_hash = txflow.tx_hash AND tx.tx_id = block_tx.tx_id)
                 LEFT JOIN txin ON (txin.tx_id = tx.tx_id AND ((txflow.outvalue>0 AND txflow.invalue=0) OR (txflow.outvalue>0 AND txflow.invalue>0 AND value > 0)))
                 LEFT JOIN txout prevout ON (txin.txout_id = prevout.txout_id)
-	            LEFT JOIN txout ON (txout.tx_id = tx.tx_id AND ((txflow.outvalue=0 AND txflow.invalue>0) OR (txflow.outvalue>0 AND txflow.invalue>0 AND value <= 0)))
+                LEFT JOIN pubkey inkey ON (inkey.pubkey_id = prevout.pubkey_id)
+                LEFT JOIN txout ON (txout.tx_id = tx.tx_id AND ((txflow.outvalue=0 AND txflow.invalue>0) OR (txflow.outvalue>0 AND txflow.invalue>0 AND value <= 0)))
+                LEFT JOIN pubkey outkey ON (outkey.pubkey_id = txout.pubkey_id)
                 """,(dbhash, dbhash))     
 
     # Called to indicate that the given block has the correct magic
