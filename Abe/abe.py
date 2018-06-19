@@ -1747,7 +1747,7 @@ class Abe:
         address = wsgiref.util.shift_path_info(page['env'])
         if address is None or chain is None:
             return 'returns the history of the address balance and transactions.\n' \
-                '/chain/CHAIN/q/addressbalance/ADDRESS\n'
+                '/chain/CHAIN/q/address_history/ADDRESS\n'
 
         version,_ = util.decode_address(address)
         
