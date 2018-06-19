@@ -1772,13 +1772,15 @@ class Abe:
             if chain_id != chain.id:
                 continue
            
-            if last_tx_hash != tx_hash:
-                balance += value
-           
             if second_address:
                 second_address = util.hash_to_address(chain.address_version, abe.store.binout(second_address))
 
             second_address = second_address or ''
+            if second_address == address:
+                continue
+
+            if last_tx_hash != tx_hash:
+                balance += value
 
             ret += '{},{},{},{},{},{},{},{},{},{}\n'.format(tx_hash,block_height,block_hash,
                     time,tx_type,format_satoshis(value, chain),format_satoshis(balance,chain),
