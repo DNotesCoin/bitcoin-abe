@@ -1749,8 +1749,6 @@ class Abe:
             return 'returns the history of the address balance and transactions.\n' \
                 '/chain/CHAIN/q/address_history/ADDRESS\n'
 
-        version,_ = util.decode_address(address)
-        
         try:
             history = abe.store.transaction_history(address)
         except DataStore.MalformedAddress:
@@ -1776,8 +1774,11 @@ class Abe:
            
             if last_tx_hash != tx_hash:
                 balance += value
- 
-            second_address = util.hash_to_address(version, second_address)
+           
+            if second_address:
+                second_address = util.hash_to_address(chain.address_version, abe.store.binout(second_address))
+
+            second_address = second_address or ''
 
             ret += '{},{},{},{},{},{},{},{},{},{}\n'.format(tx_hash,block_height,block_hash,
                     time,tx_type,format_satoshis(value, chain),format_satoshis(balance,chain),
