@@ -1649,11 +1649,23 @@ class Abe:
 
     def q_invoiceamount(abe, page, chain):
         """amount paid for a particular invoice and recipient address."""
+        addrplusinvoice = wsgiref.util.shift_path_info(page['env'])
+
+        if chain is None or addrplusinvoice is None:
+            return 'returns amount paid for a particular invoice and recipient address\n' \
+                '/chain/CHAIN/q/invoiceamount/ADDRESS+INVOICE\n'
+
         amount,_ = abe.q_invoice(page, chain).split(',')
         return amount
     
     def q_invoiceconfirmation(abe, page, chain):
         """number of confirmations for a particular invoice and recipient address."""
+        addrplusinvoice = wsgiref.util.shift_path_info(page['env'])
+
+        if chain is None or addrplusinvoice is None:
+            return 'returns number of confirmations for a particular invoice and recipient address\n' \
+                '/chain/CHAIN/q/invoiceconfirmation/ADDRESS+INVOICE\n'
+
         _,confirmations = abe.q_invoice(page, chain).split(',')
         return confirmations
 
@@ -1733,11 +1745,12 @@ class Abe:
     def q_address_history (abe, page, chain):
         """returns the history of the address balance and transactions."""
         address = wsgiref.util.shift_path_info(page['env'])
-        version,_ = util.decode_address(address)
         if address is None or chain is None:
             return 'returns the history of the address balance and transactions.\n' \
                 '/chain/CHAIN/q/addressbalance/ADDRESS\n'
 
+        version,_ = util.decode_address(address)
+        
         try:
             history = abe.store.transaction_history(address)
         except DataStore.MalformedAddress:
