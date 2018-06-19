@@ -2368,10 +2368,11 @@ store._ddl['txout_approx'],
                 b.block_height,
                 b.block_hash,
                 tx.tx_hash,
-                txflow.value, 
-            CASE WHEN txin.tx_id IS NOT NULL THEN inkey.pubkey_hash ELSE outkey.pubkey_hash END AS second_address,
-            CASE WHEN txin.tx_id IS NOT NULL THEN inval.value ELSE outval.value END AS second_address_value,
-            CASE WHEN txin.tx_id IS NOT NULL THEN 'D' ELSE 'W' END AS tx_type            
+                txflow.value,
+                block_tx.tx_pos, 
+                CASE WHEN txin.tx_id IS NOT NULL THEN inkey.pubkey_hash ELSE outkey.pubkey_hash END AS second_address,
+                CASE WHEN txin.tx_id IS NOT NULL THEN inval.value ELSE outval.value END AS second_address_value,
+                CASE WHEN txin.tx_id IS NOT NULL THEN 'D' ELSE 'W' END AS tx_type            
             FROM
                 txflow
                 JOIN chain_candidate cc ON (cc.block_id = txflow.block_id)

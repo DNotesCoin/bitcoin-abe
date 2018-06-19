@@ -1765,9 +1765,10 @@ class Abe:
             block_hash = elt[3]
             tx_hash = elt[4]
             value = elt[5]
-            second_address = elt[6]
-            second_address_value = elt[7]
-            tx_type = elt[8]
+            tx_pos = elt[6]
+            second_address = elt[7]
+            second_address_value = elt[8]
+            tx_type = elt[9]
 
             if chain_id != chain.id:
                 continue
@@ -1776,7 +1777,13 @@ class Abe:
                 second_address = util.hash_to_address(chain.address_version, abe.store.binout(second_address))
 
             second_address = second_address or ''
-            if second_address == address:
+            if tx_pos == 0:
+                second_address = 'coinbase'
+            #this method could have false positives on proof of work, but there are only a few pow blocks at the beginning of the chain and then staking is required
+            elif tx_pos == 1 and second_address == address and value>0:
+                second_address = 'staking'
+                second_address_value = None 
+            elif second_address == address:
                 continue
 
             if last_tx_hash != tx_hash:
